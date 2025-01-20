@@ -22,9 +22,9 @@ Welcome to the **Cell Engineering Game**! This is an interactive browser-based g
 
 ### Play Online
 The game is hosted on **GitHub Pages**. You can play it directly in your browser:
-[Play the Cell Engineering Game](https://yourusername.github.io/cell-engineering-game/)
+[Play the Cell Engineering Game](https://UoSDDNB.github.io/cell-engineering-game/)
 
 ### Run Locally
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/cell-engineering-game.git
+   git clone https://github.com/UoSDDNB/cell-engineering-game.git
