@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cell Engineering Game</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.js"></script>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: black;
+      color: white;
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+<script>
+  let ball, landingZones, tfStates, buttons, message, budget, countdown, countdownActive, gameState, failureMessage;
+
+  function setup() {
+    createCanvas(800, 600);
+    initializeGame();
+  }
+
+  function draw() {
+    background(0);
+
+    if (gameState === "landing") {
+      drawLandingPage();
+    } else if (gameState === "playing") {
+      drawGame();
+    } else if (gameState === "end") {
+      drawEndScreen();
+    }
+  }
+
+  function initializeGame() {
+    // Ball properties
+    ball = {
+      x: width / 2,
+      y: height / 4,
+      radius: 10,
+      vx: 0,
+      vy: 0.5, // Slow downward velocity
+    };
+
+    // Landing zones (at the bottom of the screen)
+    landingZones = [
+      { x: 100, y: height - 150, cellType: "Neuron" },
+      { x: 300, y: height - 150, cellType: "Hepatocyte" },
+      { x: 500, y: height - 150, cellType: "Cardiomyocyte" },
+      { x: 700, y: height - 150, cellType: "Adipocyte" },
+      { x: 200, y: height - 150, cellType: "Beta Cell" },
+      { x: 600, y: height - 150, cellType: "Osteoblast" },
+    ];
+
+    // Transcription factor states
+    resetTFStates();
+
+    // Create buttons for transcription factors
+    buttons = [
+      { label: "TF1", x: 20, y: height - 100 },
+      { label: "TF2", x: 140, y: height - 100 },
+      { label: "TF3", x: 260, y: height - 100 },
+      { label: "TF4", x: 380, y: height - 100 },
+      { label: "TF5", x: 500, y: height - 100 },
+      { label: "TF6", x: 620, y: height - 100 },
+    ];
+
+    message = ""; // Message to display after successful cell creation
+    failureMessage = ""; // Message when a failed experiment occurs
+    budget = 3000; // Budget for experiments
+    countdown = 0; // Countdown for restart
+    countdownActive = false;
+    gameState = "landing"; // Start on the landing page
+  }
+
+  function drawLandingPage() {
+    fill(255);
+    textSize(36);
+    textAlign(CENTER, CENTER);
+    text("Welcome to the Cell Engineering Game", width / 2, height / 3);
+
+    textSize(20);
+    text("Instructions:", width / 2, height / 2 - 50);
+    text(
+      "Toggle transcription factors to guide the ball into landing zones.\nCreate all cell types to win. Avoid exceeding your budget!",
+      width / 2,
+      height / 2
+    );
+
+    fill(0, 255, 0);
+    rect(width / 2 - 100, height / 2 + 50, 200, 50, 10);
+
+    fill(255);
+    textSize(24);
+    text("Start Game", width / 2, height / 2 + 75);
+  }
+
+  function drawGame() {
+    // Display budget
+    fill(255);
+    textSize(24);
+    textAlign(LEFT, TOP);
+    text(`Budget: $${budget}`, 10, 10);
+
+    // Draw landing zones
+    fill(255, 255, 0);
+    for (let zone of landingZones) {
+      ellipse(zone.x, zone.y, 40);
+      fill(255);
+      textAlign(CENTER, CENTER);
+      text(zone.cellType, zone.x, zone.y - 30); // Label each zone with its cell type
+      fill(255, 255, 0);
+    }
+
+    // Draw ball
+    fill(0, 255, 0);
+    ellipse(ball.x, ball.y, ball.radius * 2);
+
+    // Draw buttons
+    for (let button of buttons) {
+      fill(tfStates[button.label] ? 'red' : 'blue');
+      rect(button.x, button.y, 100, 50, 10);
+      fill(255);
+      textAlign(CENTER, CENTER);
+      text(button.label, button.x + 50, button.y + 25);
+    }
+
+    // Display messages
+    if (message) {
+      fill(255);
+      textSize(24);
+      textAlign(CENTER, CENTER);
+      text(message, width / 2, height / 2 - 50);
+    }
+
+    if (failureMessage) {
+      fill(255, 0, 0);
+      textSize(20);
+      textAlign(CENTER, CENTER);
+      text(failureMessage, width / 2, height / 2 + 50);
+    }
+
+    // Display countdown if active
+    if (countdownActive) {
+      fill(255);
+      textSize(48);
+      textAlign(CENTER, CENTER);
+      text(countdown, width / 2, height / 2);
+      return;
+    }
+
+    // Update ball velocity
+    applyTranscriptionFactors();
+
+    // Move the ball
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    // Keep the ball within horizontal bounds
+    if (ball.x < ball.radius || ball.x > width - ball.radius) {
+      ball.x = constrain(ball.x, ball.radius, width - ball.radius);
+      ball.vx = -ball.vx;
+    }
+
+    // Check for landing zone
+    for (let i = landingZones.length - 1; i >= 0; i--) {
+      let zone = landingZones[i];
+      if (dist(ball.x, ball.y, zone.x, zone.y) < ball.radius + 20) {
+        message = `Congratulations, you made a ${zone.cellType}!`;
+        failureMessage = "";
+        landingZones.splice(i, 1); // Remove the landing zone
+        resetBallWithCountdown(); // Restart the ball with countdown
+        break;
+      }
+    }
+
+    // Check if the ball falls below the screen
+    if (ball.y > height) {
+      budget -= 1000; // Deduct from budget
+      failureMessage = "Bad luck, your experiment failed. Try again.";
+      if (budget > 0) {
+        resetBallWithCountdown(); // Reset the ball with countdown if budget remains
+      } else {
+        // Game over
+        gameState = "end";
+        message = "Bad luck!";
+      }
+    }
+
+    // Check for endgame
+    if (landingZones.length === 0) {
+      gameState = "end";
+      message = "Congratulations, you are a cell engineering pro!";
+    }
+  }
+
+  function drawEndScreen() {
+    fill(255);
+    textSize(36);
+    textAlign(CENTER, CENTER);
+    text(message, width / 2, height / 2 - 50);
+
+    fill(0, 255, 0);
+    rect(width / 2 - 100, height / 2 + 50, 200, 50, 10);
+
+    fill(255);
+    textSize(24);
+    text("Return to Home", width / 2, height / 2 + 75);
+  }
+
+  function applyTranscriptionFactors() {
+    ball.vx = 0;
+    ball.vy = 0.5; // Base slow downward velocity
+
+    if (tfStates.TF1) {
+      ball.vx -= 0.5;
+      ball.vy -= 0.1;
+    }
+    if (tfStates.TF2) {
+      ball.vx += 0.5;
+      ball.vy -= 0.1;
+    }
+    if (tfStates.TF3) {
+      ball.vy += 0.5;
+    }
+    if (tfStates.TF4) {
+      ball.vx -= 0.3;
+    }
+    if (tfStates.TF5) {
+      ball.vx += 0.3;
+    }
+    if (tfStates.TF6) {
+      ball.vy -= 0.3; // Slow upward motion
+    }
+
+    // Combinatorial effects
+    if (tfStates.TF1 && tfStates.TF2) {
+      ball.vx = 0;
+      ball.vy -= 0.2;
+    }
+    if (tfStates.TF1 && tfStates.TF3) {
+      ball.vx -= 0.3;
+      ball.vy += 0.2;
+    }
+    if (tfStates.TF2 && tfStates.TF3) {
+      ball.vx += 0.3;
+      ball.vy += 0.2;
+    }
+  }
+
+  function resetTFStates() {
+    tfStates = {
+      TF1: false,
+      TF2: false,
+      TF3: false,
+      TF4: false,
+      TF5: false,
+      TF6: false,
+    };
+  }
+
+  function resetBallWithCountdown() {
+    resetTFStates(); // Turn off all TF buttons
+    countdown = 3;
+    countdownActive = true;
+    const interval = setInterval(() => {
+      countdown -= 1;
+      if (countdown === 0) {
+        clearInterval(interval);
+        countdownActive = false;
+        resetBall(); // Reset the ball after countdown
+      }
+    }, 1000);
+  }
+
+  function resetBall() {
+    ball.x = width / 2;
+    ball.y = height / 4;
+    ball.vx = 0;
+    ball.vy = 0.5;
+  }
+
+  function mousePressed() {
+    if (gameState === "landing") {
+      if (mouseX > width / 2 - 100 && mouseX < width / 2 + 100 && mouseY > height / 2 + 50 && mouseY < height / 2 + 100) {
+        gameState = "playing"; // Start the game
+      }
+    } else if (gameState === "end") {
+      if (mouseX > width / 2 - 100 && mouseX < width / 2 + 100 && mouseY > height / 2 + 50 && mouseY < height / 2 + 100) {
+        initializeGame(); // Return to landing page
+      }
+    } else if (gameState === "playing" && !countdownActive) {
+      // Toggle TF buttons during gameplay
+      for (let button of buttons) {
+        if (mouseX > button.x && mouseX < button.x + 100 && mouseY > button.y && mouseY < button.y + 50) {
+          tfStates[button.label] = !tfStates[button.label]; // Toggle TF state
+        }
+      }
+    }
+  }
+</script>
+</body>
+</html>

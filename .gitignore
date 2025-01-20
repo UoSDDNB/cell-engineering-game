@@ -1,0 +1,22 @@
+---
+
+### `.gitignore`
+
+```plaintext
+# macOS system files
+.DS_Store
+
+# Node.js
+node_modules/
+package-lock.json
+
+# Log files
+*.log
+
+# Temp files
+*.tmp
+*.swp
+
+# Other IDE-specific files
+.vscode/
+.idea/
